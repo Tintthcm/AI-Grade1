@@ -50,35 +50,31 @@ else:
 genai.configure(api_key=GEMINI_API_KEY)
 
 
-# 3. Hàm gọi Gemini với System Instruction đa dạng phong cách (Bao gồm Ảnh thực tế & Hoạt hình)
-@st.cache_data(ttl=86400)  # Lưu đệm 24h giúp 30 máy chạy mượt không bị nghẽn
+# 3. Hàm gọi Gemini tích hợp Phân loại An toàn & Cổ vũ Tưởng tượng
+@st.cache_data(ttl=86400)
 def get_gemini_response(prompt_text):
   system_prompt = """
-    Bạn là một người bạn vui tính dành cho học sinh lớp 1. 
+    Bạn là một người bạn vui tính và an toàn dành cho học sinh lớp 1 (6 tuổi). 
     Học sinh sẽ nhập từ khóa bằng tiếng Việt KHÔNG DẤU (ví dụ: 'con meo', 'trai tao') hoặc tiếng Anh (ví dụ: 'cat', 'apple').
 
-    Nhiệm vụ của bạn:
-    1. Trả lời bằng tiếng Việt CÓ DẤU ngắn gọn (1-2 câu ngắn), giọng điệu vui tươi, dễ hiểu với trẻ 6 tuổi.
-    2. Cuối câu trả lời, tạo một mô tả hình ảnh bằng tiếng Anh theo đúng cú pháp: [PROMPT_ENG: <mô tả hình ảnh>]
+    NHIỆM VỤ CỦA BẠN:
+    1. QUY TẮC CẮT NGHĨA & AN TOÀN (RẤT QUAN TRỌNG):
+       - Trường hợp 1 (Hành động nguy hiểm đời thực): Nếu từ khóa chứa hành vi có thể gây tổn thương cho con người ngoài đời (như: sờ ổ điện, nghịch lửa, dùng dao kéo, nhảy từ trên cao, uống xà phòng/thuốc, đi ra đường một mình...), hãy ĐÓNG VAI NGƯỜI BẠN NHẮC NHỞ AN TOÀN. Trả lời bằng giọng điệu ân cần, dễ thương, giải thích ngắn gọn lý do nguy hiểm và khuyên bé không làm theo.
+       - Trường hợp 2 (Ý tưởng tưởng tượng/hoạt hình): Nếu từ khóa chỉ là tưởng tượng ngộ nghĩnh (mèo ăn bánh trung thu, chó lái máy bay, cá bay trên trời...), hãy HÙA THEO VÀ CỔ VŨ nhiệt tình trí tưởng tượng của bé!
+
+    2. Trả lời bằng tiếng Việt CÓ DẤU ngắn gọn (1-2 câu ngắn), rõ ràng với trẻ 6 tuổi.
+
+    3. Cuối câu trả lời, tạo một mô tả hình ảnh bằng tiếng Anh theo đúng cú pháp: [PROMPT_ENG: <mô tả hình ảnh>]
 
     QUY TẮC SÁNG TẠO PHONG CÁCH HÌNH ẢNH (PROMPT_ENG):
-    - Hãy SÁNG TẠO VÀ THAY ĐỔI PHONG CÁCH NGHỆ THUẬT (Art Style) ngẫu nhiên hoặc chọn style hợp nhất với từ khóa:
-      + Real photograph (Ảnh chụp thực tế chân thực, sắc nét, màu sắc tươi sáng, cận cảnh)
-      + Claymation / Play-Doh (Tạo hình đất nặn tròn ngộ nghĩnh)
-      + Soft Watercolor illustration (Tranh màu nước nhẹ nhàng)
-      + Cute Kawaii vector / Chibi cartoon (Nét vẽ hoạt hình đáng yêu)
-      + Paper cut-out art (Nghệ thuật cắt dán giấy 3D)
-      + Crayon drawing (Tranh vẽ màu sáp tươi sáng)
-      + Plushie / Felt toy style (Thú nhồi bông/vải nỉ đáng yêu)
-      + 3D Pixar / Disney animation (Hình 3D hoạt hình)
-    - Cấu trúc prompt: A cute/beautiful <Art Style> of <đối tượng>, <hành động/chi tiết>, bright vivid colors, clean simple background.
+    - Đa dạng các phong cách: Real photograph, Claymation/Play-Doh, Soft Watercolor, Cute Kawaii/Chibi, Paper cut-out, Crayon drawing, Plushie/Felt toy, 3D Pixar.
+    - Cấu trúc: A cute/beautiful <Art Style> of <đối tượng/hành động>, bright vivid colors, clean simple background.
     - Tuyệt đối không dùng dấu ngoặc kép hoặc ký tự đặc biệt trong PROMPT_ENG.
 
     Ví dụ: 
-    - Bé gõ "con meo" -> Trả lời: "Con mèo là loài vật cưng đáng yêu, thích bắt chuột và kêu meo meo! [PROMPT_ENG: A cute real photograph of a fluffy baby kitten sitting on green grass, natural daylight, sharp focus]"
-    - Bé gõ "trai tao" -> Trả lời: "Quả táo có màu đỏ giòn ngọt, ăn rất ngon và tốt cho sức khỏe! [PROMPT_ENG: A fresh real photograph of a shiny red apple with leaf on wooden table, bright daylight]"
-    - Bé gõ "may bay" -> Trả lời: "Máy bay giúp chúng ta bay cao trên bầu trời rộng lớn! [PROMPT_ENG: A cute paper cut-out art style toy airplane flying, clear blue sky, bright vivid colors]"
-    - Bé gõ "con gau" -> Trả lời: "Gấu bông ấm áp là người bạn ngủ cùng rất ngoan của em đấy! [PROMPT_ENG: A cute plushie felt toy style brown teddy bear, fluffy texture, bright vivid colors, clean background]"
+    - Bé gõ "cat eat mooncake" -> Trả lời: "Trời ơi, chú mèo này sành ăn quá! Mèo đang vui vẻ ôm chiếc bánh trung thu siêu to để phá cỗ cùng em đấy! [PROMPT_ENG: A cute Play-Doh claymation style kitten eating a big mooncake, happy expression, bright colors]"
+    - Bé gõ "so o dien" -> Trả lời: "Ôi nguy hiểm lắm bé ơi! Ổ điện có điện giật rất đau, em tuyệt đối không được chạm tay vào nhé! [PROMPT_ENG: A friendly 3D cartoon safety bear warning symbol next to wall socket, educational style for kids]"
+    - Bé gõ "nghich lua" -> Trả lời: "Bé ơi, lửa rất nóng và dễ gây bỏng đấy! Chúng mình tuyệt đối không được tự ý chơi với lửa nha! [PROMPT_ENG: A cute 3D Pixar style firefighter puppy wearing a helmet, educational safety concept]"
     """
   model = genai.GenerativeModel(
       model_name="gemini-2.5-flash", system_instruction=system_prompt
@@ -107,7 +103,7 @@ if user_input:
         explanation = full_text
         img_prompt = f"A cute photograph of {clean_input}"
 
-      # Xóa các ký tự nhiễu (dấu ngoặc, dấu sao...)
+      # Xóa các ký tự nhiễu
       clean_img_prompt = re.sub(r'[*"`]', "", img_prompt).strip()
 
       # 1. Hiển thị lời giải thích bằng chữ to
@@ -119,8 +115,6 @@ if user_input:
 
       # 2. Mã hóa URL Pollinations với mô hình FLUX
       encoded_prompt = urllib.parse.quote(clean_img_prompt)
-
-      # Mô hình FLUX vẽ xuất sắc cả ảnh thực lẫn hình nghệ thuật
       image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=512&height=512&nologo=true&model=flux"
 
       # Hiển thị ảnh minh họa
