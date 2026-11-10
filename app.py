@@ -3,7 +3,7 @@ import urllib.parse
 import google.generativeai as genai
 import streamlit as st
 
-# 1. Cấu hình trang & giao diện (Chữ to, dễ thao tác cho trẻ 6 tuổi)
+# 1. Cấu hình trang & giao diện (Chữ to, màu sắc tươi sáng cho trẻ 6 tuổi)
 st.set_page_config(page_title="Góc Học Tập Của Bé", layout="centered")
 
 st.markdown(
@@ -50,25 +50,20 @@ else:
 genai.configure(api_key=GEMINI_API_KEY)
 
 
-# 3. Hàm gọi Gemini có tích hợp Cache
-@st.cache_data(ttl=86400)
+# 3. Hàm gọi Gemini với System Instruction đa dạng phong cách (Bao gồm Ảnh thực tế & Hoạt hình)
+@st.cache_data(ttl=86400)  # Lưu đệm 24h giúp 30 máy chạy mượt không bị nghẽn
 def get_gemini_response(prompt_text):
   system_prompt = """
-system_prompt = """
-   Bạn là một người bạn vui tính dành cho học sinh lớp 1. 
-   Học sinh sẽ nhập từ khóa bằng tiếng Việt KHÔNG DẤU (ví dụ: 'con meo', 'trai tao') hoặc tiếng Anh (ví dụ: 'cat', 'apple').
+    Bạn là một người bạn vui tính dành cho học sinh lớp 1. 
+    Học sinh sẽ nhập từ khóa bằng tiếng Việt KHÔNG DẤU (ví dụ: 'con meo', 'trai tao') hoặc tiếng Anh (ví dụ: 'cat', 'apple').
 
-   Nhiệm vụ của bạn:
-   1. Trả lời bằng tiếng Việt CÓ DẤU ngắn gọn (1-2 câu ngắn), giọng điệu vui tươi, dễ hiểu với trẻ 6 tuổi.
-   2. Cuối câu trả lời, tạo một mô tả hình ảnh bằng tiếng Anh theo đúng cú pháp: [PROMPT_ENG: <mô tả hình ảnh>]
+    Nhiệm vụ của bạn:
+    1. Trả lời bằng tiếng Việt CÓ DẤU ngắn gọn (1-2 câu ngắn), giọng điệu vui tươi, dễ hiểu với trẻ 6 tuổi.
+    2. Cuối câu trả lời, tạo một mô tả hình ảnh bằng tiếng Anh theo đúng cú pháp: [PROMPT_ENG: <mô tả hình ảnh>]
 
-    QUY TẮC MÔ TẢ HÌNH ẢNH (PROMPT_ENG):
-    - Chỉ dùng câu mô tả tiếng Anh đơn giản, trực diện.
-    - Cấu trúc: A cute 3D Pixar style <đối tượng>, <hành động/màu sắc>, bright vivid colors, clean background.
-    - Tuyệt đối không dùng dấu ngoặc kép hoặc ký tự đặc biệt trong PROMPT_ENG.
     QUY TẮC SÁNG TẠO PHONG CÁCH HÌNH ẢNH (PROMPT_ENG):
     - Hãy SÁNG TẠO VÀ THAY ĐỔI PHONG CÁCH NGHỆ THUẬT (Art Style) ngẫu nhiên hoặc chọn style hợp nhất với từ khóa:
-      + Real photograph (Ảnh chụp thực tế chân thực, sắc nét, màu sắc tươi sáng)
+      + Real photograph (Ảnh chụp thực tế chân thực, sắc nét, màu sắc tươi sáng, cận cảnh)
       + Claymation / Play-Doh (Tạo hình đất nặn tròn ngộ nghĩnh)
       + Soft Watercolor illustration (Tranh màu nước nhẹ nhàng)
       + Cute Kawaii vector / Chibi cartoon (Nét vẽ hoạt hình đáng yêu)
@@ -76,14 +71,15 @@ system_prompt = """
       + Crayon drawing (Tranh vẽ màu sáp tươi sáng)
       + Plushie / Felt toy style (Thú nhồi bông/vải nỉ đáng yêu)
       + 3D Pixar / Disney animation (Hình 3D hoạt hình)
+    - Cấu trúc prompt: A cute/beautiful <Art Style> of <đối tượng>, <hành động/chi tiết>, bright vivid colors, clean simple background.
+    - Tuyệt đối không dùng dấu ngoặc kép hoặc ký tự đặc biệt trong PROMPT_ENG.
 
-   Ví dụ: 
-    - Bé gõ "con meo" -> Trả lời: "Con mèo là loài vật cưng đáng yêu, thích bắt chuột và kêu meo meo! [PROMPT_ENG: A cute 3D Pixar style baby cat sitting happily, fluffy fur, bright vivid colors, clean background]"
-    - Bé gõ "trai tao" -> Trả lời: "Quả táo có màu đỏ giòn ngọt, ăn rất ngon và tốt cho sức khỏe! [PROMPT_ENG: A cute 3D Pixar style shiny red apple with green leaf, smiling face, clean background]"
-    - Bé gõ "may bay" -> Trả lời: "Máy bay giúp chúng ta bay cao trên bầu trời rộng lớn! [PROMPT_ENG: A cute 3D Pixar style toy airplane flying, blue sky, bright vivid colors]"
-    - Bé gõ "con meo" -> Trả lời: "Con mèo là loài vật cưng đáng yêu, thích bắt chuột và kêu meo meo! [PROMPT_ENG: A cute real photograph of a fluffy baby kitten sitting on green grass, natural light, clean background]"
-    - Bé gõ "trai tao" -> Trả lời: "Quả táo có màu đỏ giòn ngọt, ăn rất ngon và tốt cho sức khỏe! [PROMPT_ENG: A fresh real photo of a shiny red apple on a wooden table, bright daylight]"
-   """
+    Ví dụ: 
+    - Bé gõ "con meo" -> Trả lời: "Con mèo là loài vật cưng đáng yêu, thích bắt chuột và kêu meo meo! [PROMPT_ENG: A cute real photograph of a fluffy baby kitten sitting on green grass, natural daylight, sharp focus]"
+    - Bé gõ "trai tao" -> Trả lời: "Quả táo có màu đỏ giòn ngọt, ăn rất ngon và tốt cho sức khỏe! [PROMPT_ENG: A fresh real photograph of a shiny red apple with leaf on wooden table, bright daylight]"
+    - Bé gõ "may bay" -> Trả lời: "Máy bay giúp chúng ta bay cao trên bầu trời rộng lớn! [PROMPT_ENG: A cute paper cut-out art style toy airplane flying, clear blue sky, bright vivid colors]"
+    - Bé gõ "con gau" -> Trả lời: "Gấu bông ấm áp là người bạn ngủ cùng rất ngoan của em đấy! [PROMPT_ENG: A cute plushie felt toy style brown teddy bear, fluffy texture, bright vivid colors, clean background]"
+    """
   model = genai.GenerativeModel(
       model_name="gemini-2.5-flash", system_instruction=system_prompt
   )
@@ -109,9 +105,9 @@ if user_input:
         img_prompt = img_prompt_part.replace("]", "").strip()
       else:
         explanation = full_text
-        img_prompt = f"A cute 3D Pixar style {clean_input}"
+        img_prompt = f"A cute photograph of {clean_input}"
 
-      # Làm sạch prompt: xóa dấu ngoặc, dấu sao, ký tự lạ
+      # Xóa các ký tự nhiễu (dấu ngoặc, dấu sao...)
       clean_img_prompt = re.sub(r'[*"`]', "", img_prompt).strip()
 
       # 1. Hiển thị lời giải thích bằng chữ to
@@ -121,10 +117,10 @@ if user_input:
       )
       st.write("")
 
-      # 2. Tạo URL Pollinations AI với mô hình FLUX chất lượng cao
+      # 2. Mã hóa URL Pollinations với mô hình FLUX
       encoded_prompt = urllib.parse.quote(clean_img_prompt)
 
-      # Thêm &model=flux để ép dùng mô hình đẹp nhất và &seed=42 để nét vẽ ổn định
+      # Mô hình FLUX vẽ xuất sắc cả ảnh thực lẫn hình nghệ thuật
       image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=512&height=512&nologo=true&model=flux"
 
       # Hiển thị ảnh minh họa
