@@ -6,7 +6,6 @@ import streamlit as st
 # 1. Cấu hình trang & giao diện
 st.set_page_config(page_title="Góc Học Tập Của Bé", layout="centered")
 
-# CSS tùy chỉnh giao diện
 st.markdown(
     """
     <style>
@@ -37,49 +36,57 @@ st.markdown(
 st.title("🐱 BẠN NHỎ THÔNG MINH 🐶")
 st.write("### Em hãy gõ tên con vật hoặc đồ vật vào ô bên dưới nhé!")
 
-# 2. Cấu hình Gemini API an toàn từ Streamlit Secrets
+# 2. Kiểm tra API Key
 if "GEMINI_API_KEY" in st.secrets:
-    GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+  GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
 else:
-    st.error("Chưa cài đặt GEMINI_API_KEY trong cấu hình Streamlit!")
-    st.stop()
+  st.error("Chưa cài đặt GEMINI_API_KEY trong cấu hình Streamlit!")
+  st.stop()
 
 genai.configure(api_key=GEMINI_API_KEY)
 
-system_prompt = """
-Bạn là một người bạn vui tính dành cho học sinh lớp 1. 
-Học sinh sẽ nhập từ khóa bằng tiếng Việt KHÔNG DẤU (ví dụ: 'con meo', 'trai tao') hoặc tiếng Anh (ví dụ: 'cat', 'apple').
 
-Nhiệm vụ của bạn:
-1. Trả lời bằng tiếng Việt CÓ DẤU ngắn gọn (chỉ 1 đến 2 câu ngắn), giọng điệu vui tươi, dễ hiểu với trẻ 6 tuổi.
-2. Cuối câu trả lời, ghi chính xác cú pháp: [PROMPT_ENG: <từ tiếng Anh để tạo ảnh>]
+# 3. Hàm gọi Gemini có tích hợp Cache (Lưu kết quả trùng lặp)
+@st.cache_data(ttl=86400)  # Lưu kết quả trong 24 giờ
+def get_gemini_response(prompt_text):
+  system_prompt = """
+    Bạn là một người bạn vui tính dành cho học sinh lớp 1. 
+    Học sinh sẽ nhập từ khóa bằng tiếng Việt KHÔNG DẤU (ví dụ: 'con meo', 'trai tao') hoặc tiếng Anh (ví dụ: 'cat', 'apple').
 
-Ví dụ: 
-Bé gõ "con meo" -> Trả lời: "Con mèo là loài vật cưng đáng yêu, thích bắt chuột và kêu meo meo! [PROMPT_ENG: cute cat cartoon]"
-Bé gõ "trai tao" -> Trả lời: "Quả táo có màu đỏ giòn ngọt, ăn rất ngon và tốt cho sức khỏe! [PROMPT_ENG: fresh red apple cartoon]"
-"""
+    Nhiệm vụ của bạn:
+    1. Trả lời bằng tiếng Việt CÓ DẤU ngắn gọn (chỉ 1 đến 2 câu ngắn), giọng điệu vui tươi, dễ hiểu với trẻ 6 tuổi.
+    2. Cuối câu trả lời, ghi chính xác cú pháp: [PROMPT_ENG: <từ tiếng Anh để tạo ảnh>]
 
-model = genai.GenerativeModel(
-    model_name="gemini-2.5-flash", system_instruction=system_prompt
-)
+    Ví dụ: 
+    Bé gõ "con meo" -> Trả lời: "Con mèo là loài vật cưng đáng yêu, thích bắt chuột và kêu meo meo! [PROMPT_ENG: cute cat cartoon]"
+    """
+  model = genai.GenerativeModel(
+      model_name="gemini-2.5-flash", system_instruction=system_prompt
+  )
+  response = model.generate_content(prompt_text)
+  return response.text
 
-# 3. Ô nhập liệu cho học sinh
+
+# 4. Ô nhập liệu cho học sinh
 user_input = st.text_input(
     "", placeholder="Gõ vào đây (Ví dụ: con meo, trai tao, dog)..."
 )
 
 if user_input:
+  # Chuẩn hóa từ khóa nhập vào (viết thường, xóa khoảng trắng thừa) để tăng tỉ lệ dùng Cache
+  clean_input = user_input.strip().lower()
+
   with st.spinner("Đang tìm hình và câu trả lời cho bé..."):
     try:
-      response = model.generate_content(user_input)
-      full_text = response.text
+      # Gọi hàm đã có Cache
+      full_text = get_gemini_response(clean_input)
 
       if "[PROMPT_ENG:" in full_text:
         explanation, img_prompt_part = full_text.split("[PROMPT_ENG:")
         img_prompt = img_prompt_part.replace("]", "").strip()
       else:
         explanation = full_text
-        img_prompt = user_input
+        img_prompt = clean_input
 
       st.markdown(
           f'<div class="big-text">{explanation.strip()}</div>',
@@ -87,6 +94,7 @@ if user_input:
       )
       st.write("")
 
+      # Link ảnh Pollinations AI
       encoded_prompt = urllib.parse.quote(
           f"cute cartoon style, {img_prompt}, bright colors, white background,"
           " for kids"
@@ -100,4 +108,6 @@ if user_input:
       )
 
     except Exception as e:
-      st.error("Có chút nhầm lẫn rồi, bé hãy thử gõ lại từ khác xem sao nhé!")
+      st.error(
+          "Nhiều bé đang gõ cùng lúc quá, em chờ vài giây rồi gõ lại nhé!"
+      )
