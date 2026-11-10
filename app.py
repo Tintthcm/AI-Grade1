@@ -1,3 +1,4 @@
+import re
 import urllib.parse
 import google.generativeai as genai
 import streamlit as st
@@ -49,8 +50,8 @@ else:
 genai.configure(api_key=GEMINI_API_KEY)
 
 
-# 3. Hàm gọi Gemini có tích hợp Cache (Giúp 30 máy cùng học không bị nghẽn)
-@st.cache_data(ttl=86400)  # Lưu kết quả trùng lặp trong 24h
+# 3. Hàm gọi Gemini có tích hợp Cache
+@st.cache_data(ttl=86400)
 def get_gemini_response(prompt_text):
   system_prompt = """
     Bạn là một người bạn vui tính dành cho học sinh lớp 1. 
@@ -58,17 +59,17 @@ def get_gemini_response(prompt_text):
 
     Nhiệm vụ của bạn:
     1. Trả lời bằng tiếng Việt CÓ DẤU ngắn gọn (1-2 câu ngắn), giọng điệu vui tươi, dễ hiểu với trẻ 6 tuổi.
-    2. Cuối câu trả lời, tạo một mô tả hình ảnh chi tiết bằng tiếng Anh theo đúng cú pháp: [PROMPT_ENG: <mô tả chi tiết>]
+    2. Cuối câu trả lời, tạo một mô tả hình ảnh bằng tiếng Anh theo đúng cú pháp: [PROMPT_ENG: <mô tả hình ảnh>]
 
-    QUY TẮC TẠO PROMPT_ENG (Mô tả hình ảnh):
-    - Mở rộng từ khóa ngắn của bé thành mô tả chi tiết: Đối tượng + Cảm xúc/Hành động + Màu sắc/Đặc điểm + Phong cách.
-    - Ưu tiên phong cách 3D Pixar, nhân vật hoạt hình mắt to tròn, mỉm cười, đáng yêu.
-    - Đặt đối tượng ở chính giữa (centered composition), nền sạch/đơn giản để bé dễ nhìn.
+    QUY TẮC MÔ TẢ HÌNH ẢNH (PROMPT_ENG):
+    - Chỉ dùng câu mô tả tiếng Anh đơn giản, trực diện.
+    - Cấu trúc: A cute 3D Pixar style <đối tượng>, <hành động/màu sắc>, bright vivid colors, clean background.
+    - Tuyệt đối không dùng dấu ngoặc kép hoặc ký tự đặc biệt trong PROMPT_ENG.
 
     Ví dụ: 
-    - Bé gõ "con meo" -> Trả lời: "Con mèo là loài vật cưng đáng yêu, thích bắt chuột và kêu meo meo! [PROMPT_ENG: a cute happy fluffy baby cat sitting, big round expressive eyes, friendly smile, 3D Pixar style, soft lighting]"
-    - Bé gõ "trai tao" -> Trả lời: "Quả táo có màu đỏ giòn ngọt, ăn rất ngon và tốt cho sức khỏe! [PROMPT_ENG: a fresh shiny red apple with a green leaf, cute smiling face, 3D cartoon icon style, vibrant colors]"
-    - Bé gõ "may bay" -> Trả lời: "Máy bay giúp chúng ta bay cao trên bầu trời rộng lớn! [PROMPT_ENG: a cute colorful toy airplane flying in a clear blue sky, smiling face, 3D animation style]"
+    - Bé gõ "con meo" -> Trả lời: "Con mèo là loài vật cưng đáng yêu, thích bắt chuột và kêu meo meo! [PROMPT_ENG: A cute 3D Pixar style baby cat sitting happily, fluffy fur, bright vivid colors, clean background]"
+    - Bé gõ "trai tao" -> Trả lời: "Quả táo có màu đỏ giòn ngọt, ăn rất ngon và tốt cho sức khỏe! [PROMPT_ENG: A cute 3D Pixar style shiny red apple with green leaf, smiling face, clean background]"
+    - Bé gõ "may bay" -> Trả lời: "Máy bay giúp chúng ta bay cao trên bầu trời rộng lớn! [PROMPT_ENG: A cute 3D Pixar style toy airplane flying, blue sky, bright vivid colors]"
     """
   model = genai.GenerativeModel(
       model_name="gemini-2.5-flash", system_instruction=system_prompt
@@ -83,12 +84,10 @@ user_input = st.text_input(
 )
 
 if user_input:
-  # Làm sạch từ khóa đầu vào
   clean_input = user_input.strip().lower()
 
   with st.spinner("Đang tìm hình và câu trả lời cho bé..."):
     try:
-      # Lấy câu trả lời từ Gemini
       full_text = get_gemini_response(clean_input)
 
       # Tách lời giải thích và prompt tiếng Anh
@@ -97,7 +96,10 @@ if user_input:
         img_prompt = img_prompt_part.replace("]", "").strip()
       else:
         explanation = full_text
-        img_prompt = clean_input
+        img_prompt = f"A cute 3D Pixar style {clean_input}"
+
+      # Làm sạch prompt: xóa dấu ngoặc, dấu sao, ký tự lạ
+      clean_img_prompt = re.sub(r'[*"`]', "", img_prompt).strip()
 
       # 1. Hiển thị lời giải thích bằng chữ to
       st.markdown(
@@ -106,14 +108,11 @@ if user_input:
       )
       st.write("")
 
-      # 2. Ghép thêm chất lượng cao & Gọi Pollinations AI vẽ ảnh
-      full_image_prompt = (
-          f"{img_prompt}, 3D character render, Pixar style, centered"
-          " composition, soft lighting, bright vivid colors, simple clean"
-          " background, masterpiece, high detail"
-      )
-      encoded_prompt = urllib.parse.quote(full_image_prompt)
-      image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=512&height=512&nologo=true"
+      # 2. Tạo URL Pollinations AI với mô hình FLUX chất lượng cao
+      encoded_prompt = urllib.parse.quote(clean_img_prompt)
+
+      # Thêm &model=flux để ép dùng mô hình đẹp nhất và &seed=42 để nét vẽ ổn định
+      image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=512&height=512&nologo=true&model=flux"
 
       # Hiển thị ảnh minh họa
       st.image(
